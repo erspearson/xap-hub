@@ -1,3 +1,7 @@
+# generated code
+lib/
+*.map
+
 # Logs
 logs
 *.log
