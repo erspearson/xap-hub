@@ -14,8 +14,7 @@
     "package.json",
     "lib/xap-hub.js",
     "lib/xap-hub.js.map",
-    "src/xap-hub.ts",
-    "src/default-gateway.d.ts"
+    "src/xap-hub.ts"
   ],
   "repository": {
     "type": "git",
