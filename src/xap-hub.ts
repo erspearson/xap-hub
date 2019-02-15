@@ -24,6 +24,9 @@ export module xaphub {
   let broadcastIP = ''
   let localIP = '127.0.0.1'
 
+  //
+  // Record to hold details of each client
+  //
   interface clientRecord {
     port: number,
     interval: number,
@@ -31,8 +34,64 @@ export module xaphub {
     active: boolean
   }
 
+  //
+  // Array of clent records
+  //
   let clients: clientRecord[] = [];
 
+  //
+  // parse command line arguments using Minimist library
+  //
+  const argv = minimist(process.argv.slice(2)) 
+
+  //
+  // One command line option -v, the log level (verbosity)
+  //
+  if(argv.v) {
+    logLevel = 0 + argv.v
+  }
+
+  //
+  // Calculate the addresses for the hub to use
+  //
+  try {
+    // get the default IP address (receive)
+    const addr = xAPnetAddress.defaultIP()
+    if(addr) { defaultIP = addr.toString() }
+
+    // get the default broadcast IP address (transmit)
+    const broadcast = xAPnetAddress.defaultBroadcastIP()
+    if(broadcast) { broadcastIP = broadcast.toString() }
+
+    if(!addr || !broadcast) {
+      console.error('xAP hub: Could not determine network address to use - is there a network?')
+      process.exit(1)
+    }
+  } catch {
+    console.error('xAP hub: Exception thrown: default gateway could not be determined - is there a network?')
+    process.exit(1)
+  }
+
+  //
+  // Catch SIGINT (ctrl-C) to stop the hub
+  //
+  process.on('SIGINT', () => {
+    console.log('xAP hub: Received SIGINT. Stopping.')
+    xaphub.stop().then(() => { process.exit(0) })
+  })
+
+  //
+  // Setup and start hub operations
+  // This will continue until SIGINT is received
+  //
+  xaphub.start()
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  //
+  // Build the xAP Heartbeat message for the hub itself
+  // Sent out at regular intervals
+  //
   function buildHubHeartbeat(hbStatus: 'alive' | 'stopped' = 'alive') {
 
     const hbClass = `xap-hbeat.${hbStatus}`
@@ -54,6 +113,9 @@ export module xaphub {
 
   let hubHeartbeat = buildHubHeartbeat()
 
+  //
+  // Add, refresh and prune the client list based on incomming heartbeats
+  //
   function maintainClientList(heartbeat: xAP.heartbeatItems) {
     let port = heartbeat.port
     if(port) {
@@ -85,6 +147,9 @@ export module xaphub {
     }
   }
 
+  //
+  // Pass on a received xAP message to all connected clients
+  //
   async function forwardMessageToClients(buffer: Buffer) {
     let now = Date.now()
     clients.forEach(
@@ -233,35 +298,4 @@ export module xaphub {
       })
     }
   }
-
-  const argv = minimist(process.argv.slice(2)) // parse arguments using Minimist library
-
-  if(argv.v) {
-    logLevel = 0 + argv.v
-  }
-
-  try {
-    // get the default IP address (receive)
-    const addr = xAPnetAddress.defaultIP()
-    if(addr) { defaultIP = addr.toString() }
-
-    // get the default broadcast IP address (transmit)
-    const broadcast = xAPnetAddress.defaultBroadcastIP()
-    if(broadcast) { broadcastIP = broadcast.toString() }
-
-    if(!addr || !broadcast) {
-      console.error('xAP hub: Could not determine network address to use - is there a network?')
-      process.exit(1)
-    }
-  } catch {
-    console.error('xAP hub: Exception thrown: default gateway could not be determined - is there a network?')
-    process.exit(1)
-  }
-
-  process.on('SIGINT', () => {
-    console.log('xAP hub: Received SIGINT. Stopping.')
-    xaphub.stop().then(() => { process.exit(0) })
-  })
-
-  xaphub.start()
 }
