@@ -35,7 +35,7 @@ export module xaphub {
   }
 
   //
-  // Array of clent records
+  // Array of client records
   //
   let clients: clientRecord[] = [];
 
