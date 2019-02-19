@@ -22,7 +22,7 @@ for forwarding xAP messages in both directions between the network and its clien
 The revised client to hub setup process is:
 1. Client binds to a localhost socket and is allocated an available port number by the OS
 2. Client sends a heartbeat message containing the port number to localhost port 3639
-3. Hub receives hearbeat message on localhost and adds it to its client list
+3. Hub receives heartbeat message on localhost and adds it to its client list
 4. Hub begins forwarding messages received on the main xAP port (3639) to the client on its local port
 5. Hub begins forwarding messages received on localhost to the xAP broadcast address.
 
