@@ -41,4 +41,5 @@ xap-hub uses:
 * xap-net-address to determine local network and broadcast addresses
 * xap-framework for heartbeat header parsing.
 
-
+xap-hub is part of a family of modules for xAP  
+![xAP family diagram](/img/xap-family-hub.png?raw=true)
