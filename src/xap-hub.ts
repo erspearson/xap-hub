@@ -1,3 +1,4 @@
+#! /usr/bin/env node
 import os = require('os')
 import dgram = require('dgram')
 

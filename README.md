@@ -2,8 +2,8 @@
 An enhanced, cross-platform hub for xAP built for NodeJS.
 
 ## Install and run
-* Compiled code and dependencies can be installed from npmjs: ``npm install xap-hub``
-* Run from the command line: ``node ./lib/xap-hub.js [-v]`` or ``npm start [-- -v]``
+* Compiled code and dependencies can be installed from npmjs: ``npm install [-g] xap-hub``
+* Run from the command line: ``xap-hub`` if installed globally otherwise ``node ./lib/xap-hub.js [-v]`` or ``npm start [-- -v]``
 * Stops on receiving SIGINT, ctrl-C.
 
 ## Enhanced client interaction
