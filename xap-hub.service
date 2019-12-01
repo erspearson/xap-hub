@@ -1,0 +1,12 @@
+[Unit]
+Description=xAP Hub service. Routes xAP Home Automation messages between applications.
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/xap-hub
+KillSignal=SIGINT
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
