@@ -4,9 +4,16 @@ Wants=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/xap-hub
+ExecStart=/usr/bin/xap-hub -v
 KillSignal=SIGINT
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
+
+# Installation:
+# sudo cp xap-hub.service /etc/systemd/system
+# sudo chmod 664 /etc/systemd/system/xap-hub.service
+# sudo systemctl daemon-reload
+# sudo systemctl start xap-hub
+# sudo systemctl status -l xap-hub
