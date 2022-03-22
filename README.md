@@ -37,11 +37,13 @@ Applications written using the xap-framework for NodeJS assume enhanced hub comm
 
 ## Logging
 
-xap-hub with no options runs silently. Specifying the -v\[1\], -v2 or -v3 flag produces increasingly verbose logging to stdout.
+xap-hub with no options runs silently. Specifying the -v\[1\], -v2 up to -v5 flag produces increasingly verbose logging to stdout.
 
 * Level 1: socket setup, client connect, disconnect, inactive
 * Level 2: client refresh
 * Level 3: network message received, client message received
+* Level 4: socket sends
+* Level 5: socket send completion with byte count
 
 ## Dependencies
 

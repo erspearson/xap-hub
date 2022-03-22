@@ -77,7 +77,7 @@ export module xaphub {
           let now = Date.now()
           log(1, `new client ${heartbeat.source} on port ${port}`)
           clients.push( { port: port, interval: interval, lastSeen: now, active: true } )
-        }
+          sendHeartbeatClient(port)        }
       }
     }
   }
@@ -128,6 +128,10 @@ export module xaphub {
 
   function sendHeartbeat() {
     sendNetworkAsync(Buffer.alloc(hubHeartbeat.length, hubHeartbeat))
+  }
+
+  function sendHeartbeatClient(port: number) {
+    sendClientAsync(Buffer.alloc(hubHeartbeat.length, hubHeartbeat), port)
   }
 
   function log(level: number, msg: string) : void {
