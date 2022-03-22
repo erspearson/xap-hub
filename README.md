@@ -1,16 +1,20 @@
 # xap-hub
+
 An enhanced, cross-platform hub for xAP built for NodeJS.
 
 ## Install and run
+
 * Compiled code and dependencies can be installed from npmjs: ``npm install [-g] xap-hub``
 * Run from the command line: ``xap-hub`` if installed globally otherwise ``node ./lib/xap-hub.js [-v]`` or ``npm start [-- -v]``
 * Stops on receiving SIGINT, ctrl-C.
 
 ## Enhanced client interaction
+
 The traditional client to hub setup process has been:
+
 1. Client binds to a localhost socket and is allocated an available port number by the OS
-2. Client sends a heartbeat message containing the port number to the xAP broadcast address 
-3. Hub receives hearbeat message, determines that it came from the same xAP broadcast address that it is using and adds it to its client list
+2. Client sends a heartbeat message containing the port number to the xAP broadcast address
+3. Hub receives heartbeat message, determines that it came from the same xAP broadcast address that it is using and adds it to its client list
 4. Hub begins forwarding messages received on the main xAP port (3639) to the client on its local port.
 
 This works well but has the disadvantage that each client must determine the xAP broadcast address for transmission.  
@@ -20,6 +24,7 @@ This enhanced hub eliminates the need for a client to determine the xAP broadcas
 for forwarding xAP messages in both directions between the network and its clients.
 
 The revised client to hub setup process is:
+
 1. Client binds to a localhost socket and is allocated an available port number by the OS
 2. Client sends a heartbeat message containing the port number to localhost port 3639
 3. Hub receives heartbeat message on localhost and adds it to its client list
@@ -31,13 +36,17 @@ Unmodified clients continue to work as before but simplified clients require the
 Applications written using the xap-framework for NodeJS assume enhanced hub communication by default.
 
 ## Logging
+
 xap-hub with no options runs silently. Specifying the -v\[1\], -v2 or -v3 flag produces increasingly verbose logging to stdout.
+
 * Level 1: socket setup, client connect, disconnect, inactive
 * Level 2: client refresh
 * Level 3: network message received, client message received
 
 ## Dependencies
+
 xap-hub uses:
+
 * xap-net-address to determine local network and broadcast addresses
 * xap-framework for heartbeat header parsing.
 

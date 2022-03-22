@@ -17,8 +17,6 @@ export module xaphub {
 
   let hbTimer: NodeJS.Timer
   let connected: boolean = false
-  let actVerbose: boolean = false
-  let actHighlyVerbose: boolean = false
   let logLevel = 0
 
   let defaultIP = ''
@@ -62,14 +60,14 @@ export module xaphub {
       if(c) {
         if(hbClass == 'xap-hbeat.alive') {
           // refresh client entry
-          c.lastseen = Date.now()
+          c.lastSeen = Date.now()
           c.interval = interval
           c.active = true
           log(2, `client ${heartbeat.source} refresh on port ${c.port}`)
         }
         else if(hbClass == 'xap-hbeat.stopped') {
           // client stopped
-          c.lastseen = Date.now()
+          c.lastSeen = Date.now()
           c.active = false
           log(1, `client ${heartbeat.source} on port ${c.port} stopped`)
         }
@@ -78,7 +76,7 @@ export module xaphub {
           // new client entry
           let now = Date.now()
           log(1, `new client ${heartbeat.source} on port ${port}`)
-          clients.push( { port: port, interval: interval, lastseen: now, active: true } )
+          clients.push( { port: port, interval: interval, lastSeen: now, active: true } )
         }
       }
     }
@@ -92,11 +90,14 @@ export module xaphub {
     clients.forEach(
       (c) => { 
         if(c.active) {
-          if(now - c.lastseen < c.interval * 2000) {
-            clientSock.send(buffer, c.port, 'localhost')
+          if(now - c.lastSeen < c.interval * 2000) {
+            log(4, `  forward to client on port ${c.port}`)
+            clientSock.send(buffer, c.port, 'localhost', (error, bytesSent) => {
+              if(error) { console.error(error.message) } else { log(5, `    sent ${bytesSent} bytes`) }
+            })
           } else {
             // stale client entry
-            let d = new Date(c.lastseen)
+            let d = new Date(c.lastSeen)
             log(1, `client on port ${c.port} last seen at ${d.toLocaleTimeString()} marked inactive`)
             c.active = false
           }
@@ -105,14 +106,28 @@ export module xaphub {
     )
   }
 
-
-  function sockSend(sock: dgram.Socket, msg: string, addr: string, port: number, sent: (bytes: number) => void) {
-    sock.send(msg, 0, msg.length, port, addr, (e,b) => { sent(b) })
+  function sendNetworkAsync(buf: Buffer): Promise<number> {
+    // Wrap send in a promise so that it can be awaited if required
+    const promise = new Promise<number>((resolve, reject) => {
+      txSock.send(buf, 3639, broadcastIP, (error, bytesSent) => {
+        if(error) { reject(error) } else { resolve(bytesSent) }
+      })
+    })
+    return promise
   }
 
-  function sendHubHeartbeat(): Promise<{}> {
-    let promise = new Promise(resolve => { sockSend(txSock, hubHeartbeat, broadcastIP, 3639, resolve) })
+  function sendClientAsync(buf: Buffer, port: number): Promise<number> {
+    // Wrap send in a promise so that it can be awaited if required
+    const promise = new Promise<number>((resolve, reject) => {
+      clientSock.send(buf, port, 'localhost', (error, bytesSent) => {
+        if(error) { reject(error) } else { resolve(bytesSent) }
+      })
+    })
     return promise
+  }
+
+  function sendHeartbeat() {
+    sendNetworkAsync(Buffer.alloc(hubHeartbeat.length, hubHeartbeat))
   }
 
   function log(level: number, msg: string) : void {
@@ -121,46 +136,52 @@ export module xaphub {
 
   export function start() {
 
-    function onSockListening(this: dgram.Socket) {
+    function onSockListening(this: dgram.Socket): void {
       const address = this.address()
       log(1, `socket bound to ${address.address}:${address.port}`)
     }
 
-    function onRxSockListening(this: dgram.Socket) {
+    function onRxSockListening(this: dgram.Socket): void {
       onSockListening.call(this)
       connected = true
-      sendHubHeartbeat()
-      hbTimer = setInterval(sendHubHeartbeat, 60000)
+      sendHeartbeat()
+      hbTimer = setInterval(sendHeartbeat, 60000)
     }
 
-    function onClientReceive(this: dgram.Socket, rawMsg: Buffer, remote: dgram.AddressInfo) {
-      const localAddress = this.address()
-      log(3, `forward msg from ${remote.address}:${remote.port} on ${localAddress.address}:${localAddress.port} to ${broadcastIP}:3639`)
-      txSock.send(rawMsg, 3639, broadcastIP)
+    function onClientReceive(this: dgram.Socket, rawMsg: Buffer, remote: dgram.AddressInfo): void {
+      if(connected) {
+        const localAddress = this.address()
+        log(3, `forward msg from ${remote.address}:${remote.port} on ${localAddress.address}:${localAddress.port} to ${broadcastIP}:3639`)
+        txSock.send(rawMsg, 3639, broadcastIP, (error, bytesSent) => {
+          if(error) { console.error(error.message) } else { log(5, `    sent ${bytesSent} bytes`) }
+        })
+      }
     }
 
-    function onNetReceive(this: dgram.Socket, rawMsg: Buffer, remote: dgram.AddressInfo) {
-      const address = this.address()
-      log(3, `got msg from ${remote.address}:${remote.port} on ${address.address}:${address.port}`)
+    function onNetReceive(this: dgram.Socket, rawMsg: Buffer, remote: dgram.AddressInfo): void {
+      if(connected) {
+        const address = this.address()
+        log(3, `got msg from ${remote.address}:${remote.port} on ${address.address}:${address.port}`)
 
-      if(remote.address == defaultIP) {
-        // parse the received text into xAP message blocks
-        let blocks = xAP.parseBlocks(rawMsg.toString())
+        if(remote.address == defaultIP) {
+          // parse the received text into xAP message blocks
+          let blocks = xAP.parseBlocks(rawMsg.toString())
 
-        if(blocks.length > 0) {
-          // get the name of the first block, the header
-          let headerName = blocks[0].name.toLowerCase()
+          if(blocks.length > 0) {
+            // get the name of the first block, the header
+            let headerName = blocks[0].name.toLowerCase()
 
-          if (headerName == 'xap-hbeat') { 
-            let hb = xAP.parseHeartbeatItems(blocks[0])
-            if(hb != null) { maintainClientList(hb) }
+            if (headerName == 'xap-hbeat') { 
+              let hb = xAP.parseHeartbeatItems(blocks[0])
+              if(hb != null) { maintainClientList(hb) }
+            }
           }
         }
+        forwardMessageToClients(rawMsg)
       }
-      forwardMessageToClients(rawMsg)
     }
 
-    function onSocketError(err: any) {
+    function onSocketError(err: any): void {
       if(err.code == 'EADDRINUSE') {
         console.error(`xAP hub: The xAP port ${err.port} on ${err.address} is already in use. Is there another hub running?`)
         process.exit(1)
@@ -227,12 +248,31 @@ export module xaphub {
 
   export async function stop() {
     if (connected) {
-      clearInterval(hbTimer)
-      hubHeartbeat = buildHubHeartbeat('stopped')
-      await sendHubHeartbeat().then(() => {
-        forwardMessageToClients(new Buffer(hubHeartbeat))
-        connected = false
-      })
+      connected = false // stop processing incoming messages
+      clearInterval(hbTimer) // stop sending heartbeats
+
+      hubHeartbeat = buildHubHeartbeat('stopped') // reconfigure our heartbeat with class 'stopped'
+      const hbBuf = Buffer.alloc(hubHeartbeat.length, hubHeartbeat)
+
+      try {
+        log(4, `sending closing heartbeat on network`)
+        let n = await sendNetworkAsync(hbBuf)
+        log(5, `  sent ${n} bytes`)
+      } catch(e) {
+        console.error(e)
+      }
+
+      for await (const c of clients) {
+        if(c.active) {
+          try {
+            log(4, `sending closing heartbeat to client on port ${c.port}`)
+            let n = await sendClientAsync(hbBuf, c.port)
+            log(5, `  sent ${n} bytes`)
+          } catch(e) {
+            console.error(e)
+          }
+        }
+      }
     }
   }
 
@@ -244,7 +284,7 @@ export module xaphub {
   interface clientRecord {
     port: number,
     interval: number,
-    lastseen: number,
+    lastSeen: number,
     active: boolean
   }
 
@@ -290,7 +330,7 @@ export module xaphub {
   // Catch SIGINT (ctrl-C) to stop the hub
   //
   process.on('SIGINT', () => {
-    console.log('xAP hub: Received SIGINT. Stopping.')
+    console.log('xAP hub: Received SIGINT. Stopping...')
     xaphub.stop().then(() => { process.exit(0) })
   })
 
